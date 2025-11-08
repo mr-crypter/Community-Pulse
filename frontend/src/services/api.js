@@ -99,6 +99,19 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
 }
 
+// Legacy alias for backward compatibility with existing components
+export const aiAPI = {
+  // GET /api/summary - Get daily summary (alias for summaryAPI)
+  getSummary: (community, date) => summaryAPI.get(community, date),
+  
+  // Note: askGemini is not implemented in backend yet
+  // This is a placeholder for future Gemini assistant feature
+  askGemini: (query) => {
+    console.warn('askGemini is not yet implemented in backend')
+    return Promise.reject(new Error('Feature not yet available'))
+  },
+}
+
 export default api
 
 
