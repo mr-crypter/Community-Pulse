@@ -1,7 +1,13 @@
 import { Clock, MapPin, User, Tag } from 'lucide-react'
 import { cn } from '../utils/cn'
+import VoteButtons from './VoteButtons'
+import { useAuth0 } from '@auth0/auth0-react'
 
 const PostCard = ({ post }) => {
+  const { user } = useAuth0()
+  
+  // Check if current user has voted on this post
+  const userVote = post.votedBy?.find(v => v.userId === user?.sub)?.vote || null
   const getPriorityColor = (priority) => {
     switch (priority?.toLowerCase()) {
       case 'emergency':
@@ -104,6 +110,14 @@ const PostCard = ({ post }) => {
         {/* Meta Info */}
         <div className="flex items-center justify-between text-sm text-gray-500 pt-3 border-t border-gray-100">
           <div className="flex items-center gap-4">
+            {/* Vote Buttons */}
+            <VoteButtons
+              postId={post._id}
+              initialUpvotes={post.upvotes || 0}
+              initialDownvotes={post.downvotes || 0}
+              initialUserVote={userVote}
+            />
+            
             <div className="flex items-center">
               <User className="w-4 h-4 mr-1" />
               <span>{post.author?.name || post.authorName || 'Anonymous'}</span>

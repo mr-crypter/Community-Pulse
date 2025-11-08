@@ -12,6 +12,7 @@ import {
   getPost,
   deletePost,
   searchPosts,
+  votePost,
 } from '../controllers/posts';
 
 const router = Router();
@@ -23,6 +24,7 @@ router.get('/:id', getPost);
 // Protected routes
 router.post('/', checkJwt, validate(createPostSchema), createPost);
 router.post('/search', validate(searchPostsSchema), searchPosts);
+router.post('/:id/vote', checkJwt, votePost);
 
 // Moderator routes
 router.delete('/:id', checkJwt, deletePost);

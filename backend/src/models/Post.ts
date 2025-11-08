@@ -20,6 +20,15 @@ export interface IPost extends Document {
   urgency: UrgencyLevel;
   urgencyScore: number;
   
+  // Voting
+  upvotes: number;
+  downvotes: number;
+  votedBy: Array<{
+    userId: string;
+    vote: number; // 1 or -1
+    timestamp: Date;
+  }>;
+  
   // Meta
   createdAt: Date;
   location?: string;
@@ -83,6 +92,31 @@ const PostSchema = new Schema<IPost>({
     type: String,
     default: null,
   },
+  // Voting fields
+  upvotes: {
+    type: Number,
+    default: 0,
+    index: true,
+  },
+  downvotes: {
+    type: Number,
+    default: 0,
+  },
+  votedBy: [{
+    userId: {
+      type: String,
+      required: true,
+    },
+    vote: {
+      type: Number,
+      required: true,
+      enum: [-1, 1],
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
   status: {
     type: String,
     enum: ['active', 'removed', 'flagged'],
@@ -97,6 +131,7 @@ const PostSchema = new Schema<IPost>({
 PostSchema.index({ community: 1, createdAt: -1 });
 PostSchema.index({ urgency: 1, createdAt: -1 });
 PostSchema.index({ community: 1, status: 1, createdAt: -1 });
+PostSchema.index({ upvotes: -1, createdAt: -1 }); // For sorting by popularity
 
 // Text index for search
 PostSchema.index({ text: 'text', tags: 'text', category: 'text' });

@@ -75,6 +75,9 @@ export const postsAPI = {
   // Get emergency posts
   getEmergency: (community) => 
     api.get('/posts', { params: { urgency: 'emergency', community } }),
+  
+  // POST /api/posts/:id/vote - Vote on a post
+  vote: (id, vote) => api.post(`/posts/${id}/vote`, { vote }),
 }
 
 // Alerts API

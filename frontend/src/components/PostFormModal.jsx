@@ -14,20 +14,70 @@ const PostFormModal = ({ isOpen, onClose, onPostCreated }) => {
   const [imageUrl, setImageUrl] = useState(null) // For image URL after upload
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
 
-  const handleImageChange = (e) => {
+  // Cloudinary configuration - Replace with your own values
+  const CLOUDINARY_CLOUD_NAME = 'dq6dd3glr' // Replace with your cloud name
+  const CLOUDINARY_UPLOAD_PRESET = 'community_pulse' // Replace with your upload preset
+
+  const uploadToCloudinary = async (file) => {
+    setIsUploading(true)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+
+    try {
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: 'POST',
+          body: formData
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Upload failed')
+      }
+
+      const data = await response.json()
+      setImageUrl(data.secure_url)
+      toast.success('Image uploaded successfully!')
+      return data.secure_url
+    } catch (error) {
+      console.error('Cloudinary upload error:', error)
+      toast.error('Failed to upload image')
+      return null
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleImageChange = async (e) => {
     const file = e.target.files[0]
     if (file) {
+      // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size must be less than 5MB')
         return
       }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file')
+        return
+      }
+
       setImage(file)
+      
+      // Show preview
       const reader = new FileReader()
       reader.onloadend = () => {
         setImagePreview(reader.result)
       }
       reader.readAsDataURL(file)
+
+      // Upload to Cloudinary
+      await uploadToCloudinary(file)
     }
   }
 
@@ -79,6 +129,13 @@ const PostFormModal = ({ isOpen, onClose, onPostCreated }) => {
     setText('')
     setCommunity('Downtown')
     setLocation('')
+    setImage(null)
+    setImagePreview(null)
+    setImageUrl(null)
+    setIsUploading(false)
+  }
+
+  const removeImage = () => {
     setImage(null)
     setImagePreview(null)
     setImageUrl(null)
@@ -172,45 +229,64 @@ const PostFormModal = ({ isOpen, onClose, onPostCreated }) => {
             <p className="text-xs text-gray-500 mt-1">{text.length}/2000 characters</p>
           </div>
 
-          {/* Image Upload - TODO: Implement image upload service */}
+          {/* Image Upload */}
           <div className="mb-4">
             <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-2">
-              Photo (optional - coming soon)
+              Photo (optional)
             </label>
-            <p className="text-xs text-gray-500 mb-2">Image upload will be available soon</p>
+            <p className="text-xs text-gray-500 mb-2">
+              Upload an image to provide visual evidence (max 5MB)
+            </p>
             <div className="flex items-center gap-4">
-              <label
-                htmlFor="image"
-                className="flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
-              >
-                <Upload className="w-5 h-5 mr-2 text-gray-400" />
-                <span className="text-sm text-gray-600">Choose Image</span>
-                <input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                  disabled={true} // Disabled until image upload service is implemented
-                />
-              </label>
-              {imagePreview && (
+              {!imagePreview ? (
+                <label
+                  htmlFor="image"
+                  className={`flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg transition-colors ${
+                    isUploading || isSubmitting
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'cursor-pointer hover:border-primary-500'
+                  }`}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 text-primary-600 animate-spin" />
+                      <span className="text-sm text-gray-600">Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 mr-2 text-gray-400" />
+                      <span className="text-sm text-gray-600">Choose Image</span>
+                    </>
+                  )}
+                  <input
+                    id="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    disabled={isUploading || isSubmitting}
+                  />
+                </label>
+              ) : (
                 <div className="relative">
                   <img
                     src={imagePreview}
                     alt="Preview"
-                    className="w-20 h-20 object-cover rounded-lg"
+                    className="w-32 h-32 object-cover rounded-lg border border-gray-200"
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      setImage(null)
-                      setImagePreview(null)
-                    }}
-                    className="absolute -top-2 -right-2 bg-danger-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                    onClick={removeImage}
+                    disabled={isSubmitting}
+                    className="absolute -top-2 -right-2 bg-danger-500 hover:bg-danger-600 text-white rounded-full w-6 h-6 flex items-center justify-center transition-colors disabled:opacity-50"
                   >
                     <X className="w-4 h-4" />
                   </button>
+                  {imageUrl && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 px-2 text-center rounded-b-lg">
+                      ✓ Uploaded
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -228,7 +304,7 @@ const PostFormModal = ({ isOpen, onClose, onPostCreated }) => {
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !text.trim()}
+              disabled={isSubmitting || !text.trim() || isUploading}
               className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {isSubmitting ? (

@@ -206,3 +206,80 @@ export const searchPosts = asyncHandler(
   }
 );
 
+export const votePost = asyncHandler(
+  async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+    const { vote } = req.body; // 1 or -1
+    const userId = getUserId(req);
+
+    // Validate vote value
+    if (vote !== 1 && vote !== -1) {
+      throw new AppError('Vote must be 1 (upvote) or -1 (downvote)', 400);
+    }
+
+    const post = await Post.findById(id);
+
+    if (!post) {
+      throw new AppError('Post not found', 404);
+    }
+
+    // Check if user already voted
+    const existingVoteIndex = post.votedBy.findIndex(v => v.userId === userId);
+
+    if (existingVoteIndex !== -1) {
+      // User already voted, update their vote
+      const oldVote = post.votedBy[existingVoteIndex].vote;
+      
+      // Remove old vote count
+      if (oldVote === 1) {
+        post.upvotes = Math.max(0, post.upvotes - 1);
+      } else {
+        post.downvotes = Math.max(0, post.downvotes - 1);
+      }
+
+      // If same vote, remove it (toggle off)
+      if (oldVote === vote) {
+        post.votedBy.splice(existingVoteIndex, 1);
+        await post.save();
+        
+        res.json({
+          success: true,
+          upvotes: post.upvotes,
+          downvotes: post.downvotes,
+          userVote: null,
+        });
+        return;
+      }
+
+      // Update to new vote
+      post.votedBy[existingVoteIndex].vote = vote;
+      post.votedBy[existingVoteIndex].timestamp = new Date();
+    } else {
+      // New vote
+      post.votedBy.push({
+        userId,
+        vote,
+        timestamp: new Date(),
+      });
+    }
+
+    // Add new vote count
+    if (vote === 1) {
+      post.upvotes++;
+    } else {
+      post.downvotes++;
+    }
+
+    await post.save();
+
+    logger.info('Post voted', { postId: id, userId, vote });
+
+    res.json({
+      success: true,
+      upvotes: post.upvotes,
+      downvotes: post.downvotes,
+      userVote: vote,
+    });
+  }
+);
+
