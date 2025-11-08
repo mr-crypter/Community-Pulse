@@ -12,12 +12,30 @@ import { errorHandler, notFoundHandler } from './middleware/errors';
 
 const app: Application = express();
 
-// Security middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+// CORS configuration - Must be BEFORE other middleware
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600, // Cache preflight request for 10 minutes
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+// Log CORS configuration on startup
+logger.info(`CORS enabled for origin: ${corsOptions.origin}`);
+
+// Security middleware - Configure helmet to not interfere with CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
 }));
+
 app.use(mongoSanitize());
 
 // Rate limiting
