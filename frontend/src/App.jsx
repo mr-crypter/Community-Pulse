@@ -8,9 +8,13 @@ import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 import Navbar from './components/Navbar'
 import { Toaster } from 'react-hot-toast'
+import { useApiAuth } from './hooks/useApiAuth'
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth0()
+  
+  // Sync Auth0 token with API service
+  useApiAuth()
 
   if (isLoading) {
     return (
