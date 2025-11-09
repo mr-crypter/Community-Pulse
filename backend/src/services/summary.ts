@@ -105,44 +105,81 @@ function generateSummaryText(
   categoryStats: CategoryStats
 ): string {
   const parts: string[] = [];
+  const date = new Date(dateISO);
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
 
-  // Opening
-  parts.push(`Daily Summary for ${community} on ${dateISO}:`);
-  parts.push(`\nTotal posts: ${stats.total}`);
+  // Better formatted header
+  parts.push(`# 📊 Daily Summary for ${community}`);
+  parts.push(`**${dayName}, ${dateISO}**\n`);
 
-  // Urgency breakdown
-  if (stats.emergency > 0) {
-    parts.push(`🚨 Emergency reports: ${stats.emergency}`);
+  // At-a-glance overview with visual indicators
+  parts.push(`## 📈 Overview`);
+  const activityLevel = stats.total === 0 ? '😴 Quiet' : stats.total < 5 ? '🟢 Low' : stats.total < 20 ? '🟡 Moderate' : '🔴 High';
+  parts.push(`- **Activity Level:** ${activityLevel}`);
+  parts.push(`- **Total Posts:** ${stats.total}\n`);
+
+  // Urgency breakdown with better formatting
+  if (stats.emergency > 0 || stats.urgent > 0 || stats.normal > 0) {
+    parts.push(`## 🎯 Urgency Breakdown`);
+    if (stats.emergency > 0) {
+      parts.push(`- 🚨 **Emergency:** ${stats.emergency} post${stats.emergency > 1 ? 's' : ''}`);
+    }
+    if (stats.urgent > 0) {
+      parts.push(`- ⚠️ **Urgent:** ${stats.urgent} post${stats.urgent > 1 ? 's' : ''}`);
+    }
+    if (stats.normal > 0) {
+      parts.push(`- ✅ **Normal:** ${stats.normal} post${stats.normal > 1 ? 's' : ''}`);
+    }
+    parts.push('');
   }
-  if (stats.urgent > 0) {
-    parts.push(`⚠️ Urgent reports: ${stats.urgent}`);
+
+  // Category breakdown with icons
+  if (Object.keys(categoryStats).length > 0) {
+    parts.push(`## 📂 Activity by Category`);
+    const sortedCategories = Object.entries(categoryStats)
+      .sort(([, a], [, b]) => b.total - a.total);
+
+    sortedCategories.forEach(([category, catStats]) => {
+      const icon = getCategoryIcon(category);
+      const urgencyNote = catStats.emergency > 0 
+        ? ` ⚠️ (${catStats.emergency} emergency)` 
+        : catStats.urgent > 0 
+          ? ` ⚡ (${catStats.urgent} urgent)` 
+          : '';
+      parts.push(`- ${icon} **${category}:** ${catStats.total} post${catStats.total > 1 ? 's' : ''}${urgencyNote}`);
+    });
+    parts.push('');
   }
-  parts.push(`✓ Normal posts: ${stats.normal}`);
 
-  // Category breakdown
-  parts.push('\n**Activity by Category:**');
-  const sortedCategories = Object.entries(categoryStats)
-    .sort(([, a], [, b]) => b.total - a.total);
-
-  sortedCategories.forEach(([category, catStats]) => {
-    const urgencyNote = catStats.emergency > 0 
-      ? ` (${catStats.emergency} emergency)` 
-      : catStats.urgent > 0 
-        ? ` (${catStats.urgent} urgent)` 
-        : '';
-    parts.push(`- ${category}: ${catStats.total}${urgencyNote}`);
-  });
-
-  // Closing insight
+  // Actionable insights section
+  parts.push(`## 💡 Insights & Recommendations`);
   if (stats.emergency > 0) {
-    parts.push('\n⚠️ **Action needed:** Multiple emergency reports require immediate attention.');
-  } else if (stats.urgent > 3) {
-    parts.push('\n📢 **Note:** Higher than usual urgent activity today.');
+    parts.push(`🚨 **URGENT:** ${stats.emergency} emergency report${stats.emergency > 1 ? 's' : ''} require${stats.emergency === 1 ? 's' : ''} immediate attention.`);
+    parts.push(`\n→ *Action: Review emergency posts and coordinate response immediately.*`);
+  } else if (stats.urgent > 5) {
+    parts.push(`📢 **Notice:** Higher than usual urgent activity (${stats.urgent} posts).`);
+    parts.push(`\n→ *Action: Monitor situation closely for potential escalation.*`);
+  } else if (stats.total === 0) {
+    parts.push(`😴 **All Quiet:** No community activity reported today.`);
+    parts.push(`\n→ *Consider posting community updates to boost engagement.*`);
   } else {
-    parts.push('\n✅ Community activity within normal range.');
+    parts.push(`✅ **All Clear:** Community activity is within normal range.`);
+    parts.push(`\n→ *Continue regular monitoring. Everything looks good!*`);
   }
 
   return parts.join('\n');
+}
+
+// Helper function for category icons
+function getCategoryIcon(category: string): string {
+  const icons: Record<string, string> = {
+    'Safety': '🚨',
+    'Events': '🎉',
+    'Lost & Found': '🔍',
+    'Public Works': '🔧',
+    'General': '💬'
+  };
+  return icons[category] || '📌';
 }
 
 export async function getOrCreateDailySummary(
